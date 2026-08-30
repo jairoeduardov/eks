@@ -96,7 +96,11 @@ jobs:
 
       - name: Bump image.tag en deploy/values.yaml
         run: |
-          sudo apt-get update -qq && sudo apt-get install -yqq yq
+          # El paquete apt "yq" es el wrapper Python (kislyuk/yq, sintaxis jq
+          # con -y para YAML) -- NO el yq de Go (mikefarah) que usamos aca.
+          # Se instala el binario oficial directo desde GitHub releases.
+          sudo curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
           yq -i '.image.tag = "${{ needs.build-and-push.outputs.image_tag }}"' deploy/values.yaml
 
       - name: Commit y push (no reactiva CI)
