@@ -1,0 +1,108 @@
+# Workflow reutilizable: build de imagen (SIEMPRE linux/amd64), scan Trivy,
+# push a ECR por OIDC, y bump del tag en deploy/values.yaml del repo que llama.
+# Cada app lo invoca con `uses: jairoeduardov/eks/.github/workflows/app-build-deploy.yml@main`.
+name: app-build-deploy
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: Nombre de la app (coincide con el repositorio ECR y el namespace)
+        required: true
+        type: string
+      dockerfile:
+        description: Ruta al Dockerfile dentro del repo que llama
+        required: false
+        type: string
+        default: Dockerfile
+      context:
+        description: Contexto de build de docker
+        required: false
+        type: string
+        default: .
+      build_args:
+        description: Build args adicionales, uno por linea "CLAVE=valor"
+        required: false
+        type: string
+        default: ""
+      aws_region:
+        required: false
+        type: string
+        default: us-east-1
+      deploy_role_arn:
+        description: ARN del rol de despliegue (salida de bootstrap/github-oidc.tf)
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.tag.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: tag
+        run: echo "value=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.deploy_role_arn }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image (solo linux/amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          platforms: linux/amd64
+          push: false
+          load: true
+          build-args: ${{ inputs.build_args }}
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ inputs.app_name }}:${{ steps.tag.outputs.value }}
+
+      - name: Escaneo de vulnerabilidades (Trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.ecr.outputs.registry }}/${{ inputs.app_name }}:${{ steps.tag.outputs.value }}
+          severity: CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Push a ECR
+        run: |
+          docker push "${{ steps.ecr.outputs.registry }}/${{ inputs.app_name }}:${{ steps.tag.outputs.value }}"
+          docker tag "${{ steps.ecr.outputs.registry }}/${{ inputs.app_name }}:${{ steps.tag.outputs.value }}" \
+            "${{ steps.ecr.outputs.registry }}/${{ inputs.app_name }}:main-latest"
+          docker push "${{ steps.ecr.outputs.registry }}/${{ inputs.app_name }}:main-latest"
+
+  update-manifest:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bump image.tag en deploy/values.yaml
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -yqq yq
+          yq -i '.image.tag = "${{ needs.build-and-push.outputs.image_tag }}"' deploy/values.yaml
+
+      - name: Commit y push (no reactiva CI)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add deploy/values.yaml
+          git commit -m "chore: deploy ${{ needs.build-and-push.outputs.image_tag }} [skip ci]"
+          git push

@@ -1,0 +1,29 @@
+# Application de ArgoCD multi-source: el chart vive en este repo (eks), los
+# valores de despliegue (imagen, tag, secretName) viven en el repo de la app.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: quiz
+  namespace: argocd
+spec:
+  project: apps
+  sources:
+    - repoURL: https://github.com/jairoeduardov/eks.git
+      targetRevision: main
+      path: charts/app
+      helm:
+        releaseName: quiz
+        valueFiles:
+          - $values/deploy/values.yaml
+    - repoURL: https://github.com/jairoeduardov/quiz.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: quiz
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # el namespace ya lo crea Terraform (60-platform.tf)

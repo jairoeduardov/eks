@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: apps
+  namespace: argocd
+spec:
+  description: Aplicaciones del portafolio desplegadas en el cluster EKS compartido
+  sourceRepos:
+    - "https://github.com/jairoeduardov/eks.git"
+    - "https://github.com/jairoeduardov/quiz.git"
+    - "https://github.com/jairoeduardov/invoicing-service.git"
+    - "https://github.com/jairoeduardov/invoicing-app.git"
+  destinations:
+    - namespace: "*"
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

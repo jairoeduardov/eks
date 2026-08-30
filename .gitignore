@@ -1,0 +1,10 @@
+*.tfstate
+*.tfstate.*
+*.tfvars.local
+*.tfplan
+.terraform/
+crash.log
+*.pem
+*.key
+.DS_Store
+.claude/

@@ -1,0 +1,84 @@
+nameOverride: ""
+
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+containerPort: 8080
+
+# Default de Kubernetes. Subir si el proceso necesita drenar trabajo en
+# shutdown (ej. invoicing-service: su pool async espera hasta 30s, ver
+# AsyncConfig.java -- usar 45 para dejar margen).
+terminationGracePeriodSeconds: 30
+
+# Todas las imagenes de la plataforma se construyen exclusivamente linux/amd64.
+nodeSelector:
+  kubernetes.io/arch: amd64
+
+# Ruteo sobre el ALB compartido (IngressGroup). Sin dominio: se accede por el
+# hostname del ALB, con paths distintos por aplicacion.
+ingress:
+  enabled: true
+  group: shared
+  # Orden de evaluacion dentro del IngressGroup compartido: menor = primero.
+  # Una app con path "/" (catch-all) debe usar un numero alto para no capturar
+  # el trafico de las demas -- ver invoicing-app/deploy/values.yaml.
+  order: 10
+  paths:
+    - /
+  healthcheckPath: /actuator/health
+
+probes:
+  liveness:
+    enabled: true
+    path: /actuator/health/liveness
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readiness:
+    enabled: true
+    path: /actuator/health/readiness
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  startup:
+    enabled: true
+    path: /actuator/health/readiness
+    failureThreshold: 30
+    periodSeconds: 5
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    # Sin limite de CPU a proposito: el throttling del CFS en apps JVM degrada
+    # latencias de forma dificil de diagnosticar. requests.cpu ya garantiza la
+    # porcion justa bajo contencion.
+    memory: 1Gi
+
+env: {}
+
+externalSecret:
+  enabled: true
+  secretName: "" # ej. eks/quiz -> clave en AWS Secrets Manager
+  refreshInterval: 1h
+
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+metrics:
+  enabled: false
+  path: /actuator/prometheus
+  port: 8080
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+serviceAccount:
+  create: true
+  annotations: {}

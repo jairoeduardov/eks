@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: invoicing-service
+  namespace: argocd
+spec:
+  project: apps
+  sources:
+    - repoURL: https://github.com/jairoeduardov/eks.git
+      targetRevision: main
+      path: charts/app
+      helm:
+        releaseName: invoicing-service
+        valueFiles:
+          - $values/deploy/values.yaml
+    - repoURL: https://github.com/jairoeduardov/invoicing-service.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: invoicing
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # el namespace ya lo crea Terraform (60-platform.tf)
