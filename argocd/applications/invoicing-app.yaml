@@ -13,7 +13,7 @@ spec:
         releaseName: invoicing-app
         valueFiles:
           - $values/deploy/values.yaml
-    - repoURL: https://github.com/jairoeduardov/invoicing-app.git
+    - repoURL: git@github.com:jairoeduardov/invoicing-app.git
       targetRevision: main
       ref: values
   destination:

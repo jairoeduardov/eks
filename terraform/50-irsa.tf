@@ -164,25 +164,17 @@ resource "aws_iam_policy" "invoicing_service_s3" {
 }
 
 data "aws_iam_policy_document" "invoicing_service_cognito" {
+  # El pool de Cognito ("User pool - Loroko", COGNITO_USER_POOL_ID) vive en la
+  # cuenta 610550203411, no en esta (var.cognito_cross_account_role_arn). La
+  # API de Cognito no admite políticas basadas en recursos ni acceso
+  # cross-account directo vía IAM: el único camino es que este rol asuma un
+  # rol EN esa cuenta (creado manualmente, ver eks-lab-invoicing-cognito-cross-account)
+  # que sí tiene permisos sobre el pool. Sin este statement, CognitoAdminConfig
+  # obtiene AccessDenied o ResourceNotFoundException según lo que intente.
   statement {
-    effect = "Allow"
-    actions = [
-      "cognito-idp:CreateGroup",
-      "cognito-idp:ListGroups",
-      "cognito-idp:ListUsers",
-      "cognito-idp:AdminCreateUser",
-      "cognito-idp:AdminDeleteUser",
-      "cognito-idp:AdminGetUser",
-      "cognito-idp:AdminSetUserPassword",
-      "cognito-idp:AdminUpdateUserAttributes",
-      "cognito-idp:AdminAddUserToGroup",
-      "cognito-idp:AdminRemoveUserFromGroup",
-      "cognito-idp:AdminListGroupsForUser",
-      "cognito-idp:AdminDisableUser",
-      "cognito-idp:AdminEnableUser",
-    ]
-    # Restringido al User Pool de la app (COGNITO_USER_POOL_ID), no a "*".
-    resources = ["arn:aws:cognito-idp:${var.region}:*:userpool/${var.cognito_user_pool_id}"]
+    effect    = "Allow"
+    actions   = ["sts:AssumeRole"]
+    resources = [var.cognito_cross_account_role_arn]
   }
 }
 

@@ -15,7 +15,7 @@ spec:
         releaseName: quiz
         valueFiles:
           - $values/deploy/values.yaml
-    - repoURL: https://github.com/jairoeduardov/quiz.git
+    - repoURL: git@github.com:jairoeduardov/quiz.git
       targetRevision: main
       ref: values
   destination:

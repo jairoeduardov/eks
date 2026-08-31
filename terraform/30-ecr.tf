@@ -5,7 +5,10 @@ resource "aws_ecr_repository" "app" {
   for_each = toset(var.app_names)
 
   name                 = each.value
-  image_tag_mutability = "IMMUTABLE"
+  # MUTABLE: el workflow re-etiqueta "main-latest" en cada deploy (tag
+  # flotante por diseño) y un rerun del mismo commit debe poder
+  # sobrescribir su tag de SHA sin fallar.
+  image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
     scan_on_push = true

@@ -110,6 +110,12 @@ variable "cognito_user_pool_id" {
   default     = "us-east-1_CJr63ssKa"
 }
 
+variable "cognito_cross_account_role_arn" {
+  description = "Rol IAM en la cuenta del pool de Cognito (610550203411, 'User pool - Loroko') que invoicing-service asume via STS -- el pool no vive en esta cuenta AWS."
+  type        = string
+  default     = "arn:aws:iam::610550203411:role/eks-lab-invoicing-cognito-cross-account"
+}
+
 variable "enable_cloudfront" {
   description = "Crea la distribucion CloudFront delante del ALB compartido. Requiere que el ALB ya exista (Ingress sincronizado al menos una vez) porque se descubre por tag, no se referencia directamente."
   type        = bool

@@ -22,8 +22,8 @@ namespace_overrides = {
 }
 
 # Fase 1: apps desplegadas, ALB en HTTP publico directo.
-# Fase 2 (segundo apply, tras validar que el ALB responde): true.
-enable_cloudfront = false
+# Fase 2: ALB ya validado (invoicing-service/invoicing-app healthy), CloudFront delante.
+enable_cloudfront = true
 
 cognito_user_pool_id = "us-east-1_CJr63ssKa"
 
